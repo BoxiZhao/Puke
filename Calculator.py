@@ -3,12 +3,15 @@ from functools import cmp_to_key as c2k
 
 suits = ['h', 's', 'd', 'c']	   # 9829 ♥ 9824 ♠ 9830 ♦ 9827 ♣
 s2i = {'h': 0, 's': 1, 'd': 2, 'c': 3}
-suits2name = {'h': 'hearts', 's': 'spades', 'd': 'diamonds', 'c': 'clubs'}
+s2n = {'h': 'hearts', 's': 'spades', 'd': 'diamonds', 'c': 'clubs'}
 ranks = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A']
-ranks2name = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, 'T': 10, 'J': 'jack', 'Q': 'queen',  'K': 'king', 'A': 'ace'}
+r2n = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, 'T': 10, 'J': 'jack', 'Q': 'queen',  'K': 'king', 'A': 'ace'}
 r2i = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, 'T': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14}
 cards_type = ['Straight Flush', 'Four of a Kind', 'Full House', 'Flush', 'Straight', 'Three of a Kind', 'Two pairs', 'One pair', 'High card']  # 9 Types
 t2i = {'Straight Flush': 0, 'Four of a Kind': 1, 'Full House': 2, 'Flush': 3, 'Straight': 4, 'Three of a Kind': 5, 'Two pairs': 6, 'One pair': 7, 'High card': 8}  # 9 Types
+
+prob_list = [0.03, 0.17, 2.60, 3.03, 4.62, 4.83, 23.50, 43.82, 17.40]
+prob_sum = [0.03, 0.2, 2.8, 5.83, 10.45, 15.28, 38.78, 82.6, 100]
 deal_list = [-3, -1, -1]
 
 def cmp(a, b):		# a b are cards, < -1, == 0, > 1
@@ -22,10 +25,6 @@ def cmp(a, b):		# a b are cards, < -1, == 0, > 1
 	if s2i[a[1]] > s2i[b[1]]:
 		return 1
 	return 0
-
-def anynum(arr, arr_count, num):
-
-	return any(arr_count[i] == num for i in arr)
 
 def c2i(card):
 
@@ -58,6 +57,7 @@ def check(hand, community_cards, cutoff=0):
 	rank_set = np.array(list(set(cards_rank)))
 	rank_choose = [[0] * 5] * 9
 	rank_count = [cards_rank.count(i) for i in range(16)]
+	count_bar = [sum(j == i for j in rank_count) for i in range(5)]
 
 	if any(suit_count[i] > 4 for i in range(4)):  # Flush 3
 		is_type[3] = True
@@ -93,27 +93,27 @@ def check(hand, community_cards, cutoff=0):
 			if is_type[0] and cutoff > 0:
 				return cards_type[0], rank_choose[0]
 
-	if anynum(cards_rank, rank_count, 4):  # Four of a Kind 1
+	elif count_bar[4] > 0:  # Four of a Kind 1
 		is_type[1] = True
 		if cutoff > 1:
 			return cards_type[1], rank_choose[1]
-		rank_choose[1] = putmajor(4, rank_set, cards_rank, rank_choose[4])
+		rank_choose[1] = putmajor(4, rank_set, cards_rank, rank_choose[1])
 
-	elif anynum(cards_rank, rank_count, 3) and anynum(cards_rank, rank_count, 2):  # Full House 2
+	elif count_bar[3] > 0 and count_bar[2] > 0:  # Full House 2
 		is_type[2] = True
 		if cutoff > 2:
 			return cards_type[2], rank_choose[2]
 		rank_choose[2] = putmajor(3, rank_set, cards_rank, rank_choose[2])
 		rank_choose[2] = putmajor(2, rank_set, cards_rank, rank_choose[2], start_pos=3)
 	
-	elif anynum(cards_rank, rank_count, 3):  # Three of a Kind 5
+	elif count_bar[3] > 0:  # Three of a Kind 5
 		is_type[5] = True
 		if cutoff > 5:
 			return cards_type[5], rank_choose[5]
 		rank_choose[5] = putmajor(3, rank_set, cards_rank, rank_choose[5])
 		rank_choose[5] = putminor(2, rank_set, cards_rank, rank_choose[5])
 
-	elif sum(rank_count[rank] == 2 for rank in rank_set) > 1:  # Two pairs 6
+	elif count_bar[2] > 1:  # Two pairs 6
 		is_type[6] = True
 		if cutoff > 6:
 			return cards_type[6], rank_choose[6]
@@ -126,7 +126,7 @@ def check(hand, community_cards, cutoff=0):
 			if rank != rank_choose[6][0] and rank != rank_choose[6][2]:
 				rank_choose[6][4] = rank
 
-	elif anynum(cards_rank, rank_count, 2):  # One pair 7
+	elif count_bar[2] > 0:  # One pair 7
 		is_type[7] = True
 		if cutoff > 7:
 			return cards_type[7], rank_choose[7]
